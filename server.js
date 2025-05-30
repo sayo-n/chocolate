@@ -161,51 +161,56 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.commandName === 'create-squad') {
-    const eventId = interaction.options.getString('id');
+    const eventId = interaction.options.getString('eventid');
+    const biome = interaction.options.getString('biome');
+    const scoreKey = `score-${biome}`;
 
     if (!fs.existsSync('lottery.json') || !fs.existsSync('score.json')) {
-      return interaction.reply('❌ 必要なファイル（lottery.json または score.json）が存在しません。');
+      return interaction.reply('❌ lottery.json または score.json が見つかりません。');
     }
 
     const lotteryData = JSON.parse(fs.readFileSync('lottery.json', 'utf-8'));
     const scoreData = JSON.parse(fs.readFileSync('score.json', 'utf-8'));
-
     const event = lotteryData[eventId];
+
     if (!event || !event.winners) {
-      return interaction.reply('❓ 指定されたイベントの当選者が見つかりません。');
+      return interaction.reply('❓ イベントが見つかりません。');
     }
 
     const winners = event.winners;
 
     const userScores = winners.map(uid => {
-      const entry = scoreData[uid];
+      const entry = scoreData[uid] || {};
       return {
         user: uid,
-        score: entry?.score ?? 0,
-        egg: entry?.egg > 0
+        egg: entry.egg ?? 0,
+        score: entry[scoreKey] ?? 0
       };
     });
 
     const squad1 = [];
     const squad2 = [];
+    const eggUsers = userScores.filter(u => u.egg > 0);
+    const nonEggUsers = userScores.filter(u => u.egg === 0);
 
-    const eggUsers = userScores.filter(u => u.egg);
-    const nonEggUsers = userScores.filter(u => !u.egg);
+    const sortedEggUsers = [...eggUsers].sort((a, b) => b.egg - a.egg);
 
-    for (let i = 0; i < eggUsers.length; i++) {
-      if (squad1.length < 3) {
-        squad1.push(eggUsers[i]);
-      } else {
-        squad2.push(eggUsers[i]);
-      }
-    }
+    // 最大3人をsquad1へ
+    squad1.push(...sortedEggUsers.slice(0, 3));
 
-    const rest = nonEggUsers.concat(squad1.length >= 3 ? [] : eggUsers.slice(squad1.length));
-    const sorted = rest.sort((a, b) => b.score - a.score);
+      // 4人目以降をsquad2へ
+    squad2.push(...sortedEggUsers.slice(3));
 
+    // 残りの人（egg=0）+ 分配しきれなかったeggの人）でスコアバランス分け
+    const remaining = nonEggUsers.concat(
+      sortedEggUsers.length > 3 ? [] : sortedEggUsers.slice(squad1.length)
+    );
+    const sorted = [...remaining].sort((a, b) => b.score - a.score);
+
+    // スコアバランスを考慮して squad1/squad2 に振り分け
     while ((squad1.length < 3 || squad2.length < 3) && sorted.length > 0) {
-      const sum1 = squad1.reduce((sum, u) => sum + u.score, 0);
-      const sum2 = squad2.reduce((sum, u) => sum + u.score, 0);
+      const sum1 = squad1.reduce((s, u) => s + u.score, 0);
+      const sum2 = squad2.reduce((s, u) => s + u.score, 0);
 
       if (sum2 < sum1 && squad2.length < 3) {
         squad2.push(sorted.shift());
@@ -221,35 +226,48 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.commandName === 'update-score') {
-    const user = interaction.options.getUser('user') ?? interaction.user;
-    const egg = interaction.options.getNumber('egg');
-    const score = interaction.options.getNumber('score');
+    const targetUser = interaction.options.getUser('user') ?? interaction.user;
 
-    //他人を対象にした場合、権限確認
-    if (user.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
+    // 他人の更新には権限が必要
+    if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
       return interaction.reply({ content: '❌ 他ユーザーのスコアを更新する権限がありません。', ephemeral: true });
     }
 
-    if (egg == null || score == null) {
-      return interaction.reply({ content: '❌ 入力が不完全です。', ephemeral: true });
+    const eggInput = interaction.options.getNumber('egg');
+    const scoreInputs = {
+      'score-Fire Ant Hell': interaction.options.getNumber('score_fire_ant_hell'),
+      'score-Ocean': interaction.options.getNumber('score_ocean')
+    };
+
+    let scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
+    const exists = targetUser.id in scoreData;
+    const existing = scoreData[targetUser.id] ?? {};
+
+    // eggの初期化と更新
+    const newEgg = exists ? (eggInput != null ? eggInput : existing.egg ?? 0) : (eggInput != null ? eggInput : 0);
+
+    // 各スコアを初期化・更新
+    const newScores = {};
+    for (const key of Object.keys(scoreInputs)) {
+      newScores[key] = exists
+        ? (scoreInputs[key] != null ? scoreInputs[key] : existing[key] ?? 0)
+        : (scoreInputs[key] != null ? scoreInputs[key] : 0);
     }
 
-   let scoreData = {};
-   if (fs.existsSync('score.json')) {
-     scoreData = JSON.parse(fs.readFileSync('score.json', 'utf-8'));
-   }
+    scoreData[targetUser.id] = {
+      egg: newEgg,
+      ...newScores
+    };
 
-   scoreData[user.id] = {
-     egg,
-     score
-   };
+    fs.writeFileSync('score.json', JSON.stringify(scoreData, null, 2), 'utf-8');
 
-   fs.writeFileSync('score.json', JSON.stringify(scoreData, null, 2), 'utf-8');
+    const replyLines = [`✅ <@${targetUser.id}> のデータを更新しました。`];
+    replyLines.push(`・egg: ${newEgg}`);
+    for (const [k, v] of Object.entries(newScores)) {
+      replyLines.push(`・${k}: ${v}`);
+    }
 
-   return interaction.reply({
-     content: `✅ <@${user.id}> のスコアを更新しました。\n・egg: ${egg}\n・score: ${score}`,
-     ephemeral: true
-   });
+    return interaction.reply({ content: replyLines.join('\n'), ephemeral: true });
   }
   //使用権原必要なコマンド
   if (interaction.commandName === 'prioritize') {
@@ -314,20 +332,31 @@ async function registerGlobalCommands() {
         option.setName('user').setDescription('優先ユーザー').setRequired(true)),
 
     new SlashCommandBuilder()
-      .setName('create-squad')
-      .setDescription('squadを作成します。（fahのみ。）')
-      .addStringOption(option => 
-        option.setName('id').setDescription('イベントID').setRequired(true)),
-
-    new SlashCommandBuilder()
       .setName('update-score')
-      .setDescription('ユーザーのegg値とscoreを更新する')
-      .addNumberOption(opt =>
-        opt.setName('egg').setDescription('eggの数値（例: 1）').setRequired(true))
-      .addNumberOption(opt =>
-        opt.setName('score').setDescription('scoreの数値（例: 8.7）').setRequired(true))
+      .setDescription('ユーザーのegg値やスコアを更新する')
       .addUserOption(opt =>
         opt.setName('user').setDescription('対象ユーザー').setRequired(false))
+      .addNumberOption(opt =>
+       opt.setName('egg').setDescription('eggの値').setRequired(false))
+      .addNumberOption(opt =>
+        opt.setName('score_fire_ant_hell').setDescription('Fire Ant Hell のスコア').setRequired(false))
+      .addNumberOption(opt =>
+        opt.setName('score_ocean').setDescription('Ocean のスコア').setRequired(false)),
+
+    new SlashCommandBuilder()
+      .setName('create-squad')
+      .setDescription('3+3 squadを作成する。')
+      .addStringOption(opt =>
+        opt.setName('eventid').setDescription('イベントID').setRequired(true))
+      .addStringOption(opt =>
+        opt.setName('biome')
+          .setDescription('スコアを参照する場所')
+          .setRequired(true)
+          .addChoices(
+            { name: 'Fire Ant Hell', value: 'Fire Ant Hell' },
+            { name: 'Ocean', value: 'Ocean' }
+          ))
+
   ].map(cmd => cmd.toJSON());
 
   const rest = new REST({ version: '10' }).setToken(TOKEN);
