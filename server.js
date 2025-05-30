@@ -1,6 +1,8 @@
+require('dotenv').config();
 const fs = require('fs');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
-const { TOKEN, CLIENT_ID, allowedUserIds} = require('./config.json');
+const TOKEN = process.env.TOKEN, CLIENT_ID = process.env.CLIENT_ID
+const {allowedUserIds} = require('./config.json');
 
 const client = new Client({
   intents: [
