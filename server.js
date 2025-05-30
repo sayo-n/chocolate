@@ -225,6 +225,11 @@ client.on('interactionCreate', async interaction => {
     const egg = interaction.options.getNumber('egg');
     const score = interaction.options.getNumber('score');
 
+    //他人を対象にした場合、権限確認
+    if (user.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
+      return interaction.reply({ content: '❌ 他ユーザーのスコアを更新する権限がありません。', ephemeral: true });
+    }
+
     if (egg == null || score == null) {
       return interaction.reply({ content: '❌ 入力が不完全です。', ephemeral: true });
     }
