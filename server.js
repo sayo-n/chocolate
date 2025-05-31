@@ -36,6 +36,9 @@ client.on('interactionCreate', async interaction => {
         flags: MessageFlags.Ephemeral
       });
     }
+    const unixSeconds = Math.floor(endsAt.getTime() / 1000);
+    const formatted = `<t:${unixSeconds}:f>`;
+
 
     const eventId = `${interaction.id}-${Date.now()}`;
     const lotteryData = fs.existsSync('lottery.json') ? JSON.parse(fs.readFileSync('lottery.json', 'utf-8')) : {};
@@ -50,7 +53,7 @@ client.on('interactionCreate', async interaction => {
     const row = new ActionRowBuilder().addComponents(button);
 
     await interaction.reply({
-      content: `🎉 **${title}** 応募受付中！\n〆切: ${endsAt.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}\nイベントID: \`${eventId}\``,
+      content: `🎉 **${title}** 応募受付中！\n〆切: ${formatted}\nイベントID: \`${eventId}\``,
       components: [row]
     });
   }
