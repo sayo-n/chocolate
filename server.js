@@ -50,7 +50,7 @@ client.on('interactionCreate', async interaction => {
     const row = new ActionRowBuilder().addComponents(button);
 
     await interaction.reply({
-      content: `🎉 **${title}** 応募受付中！\n〆切: ${endsAt.toLocaleString()}\nイベントID: \`${eventId}\``,
+      content: `🎉 **${title}** 応募受付中！\n〆切: ${endsAt.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}\nイベントID: \`${eventId}\``,
       components: [row]
     });
   }
