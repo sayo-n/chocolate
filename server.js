@@ -1,5 +1,6 @@
 require('dotenv').config();
 const fs = require('fs');
+const {DateTime} = require('luxon');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const TOKEN = process.env.TOKEN, CLIENT_ID = process.env.CLIENT_ID
 const {allowedUserIds} = require('./config.json');
@@ -25,10 +26,15 @@ client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'create-lottery') {
     const title = interaction.options.getString('title');
     const endtimeStr = interaction.options.getString('endtime');
-    const endsAt = new Date(endtimeStr);
-
-    if (isNaN(endsAt)) {
-      return interaction.reply({ content: '❌ 終了日時の形式が不正です。例: `2025-06-01 18:00`', ephemeral: true });
+    let endsAt
+    try {
+      endsAt = parseJSTDate(endtimeStr);
+    } catch (error) {
+      console.log(error)
+      return interaction.reply({
+        content: `❌ 終了日時の形式が不正です。\n有効な形式: \`YYYY-MM-DD HH:mm\`、\`MM-DD HH:mm\`、\`HH:mm\`\n例: \`2025-06-01 18:00\``,
+        flags: MessageFlags.Ephemeral
+      });
     }
 
     const eventId = `${interaction.id}-${Date.now()}`;
@@ -368,6 +374,62 @@ async function registerGlobalCommands() {
   } catch (error) {
     console.error('❌ グローバルコマンド登録エラー:', error);
   }
+}
+
+function parseJSTDate(inputStr) {
+  const now = DateTime.now().setZone('Asia/Tokyo');
+
+  let dt;
+
+  // パターン1: YYYY-MM-DD HH:mm
+  if (/^\d{4}-\d{1,2}-\d{1,2} \d{1,2}:\d{1,2}$/.test(inputStr)) {
+    dt = DateTime.fromFormat(inputStr, 'yyyy-M-d H:m', { zone: 'Asia/Tokyo' });
+  }
+  // パターン2: MM-DD HH:mm（年は現在年）
+  else if (/^\d{1,2}-\d{1,2} \d{1,2}:\d{1,2}$/.test(inputStr)) {
+    dt = DateTime.fromFormat(`${now.year}-${inputStr}`, 'yyyy-M-d H:m', { zone: 'Asia/Tokyo' });
+  }
+  // パターン3: HH:mm（年月日は現在の日付）
+  else if (/^\d{1,2}:\d{1,2}$/.test(inputStr)) {
+    dt = DateTime.fromFormat(`${now.toFormat('yyyy-MM-dd')} ${inputStr}`, 'yyyy-MM-dd H:m', { zone: 'Asia/Tokyo' });
+  }
+  else {
+    throw new Error(`不正な日付形式です: ${inputStr}`);
+  }
+
+  if (!dt.isValid) {
+    throw new Error(`日付の解析に失敗しました: ${dt.invalidExplanation}`);
+  }
+
+  return dt.toUTC().toJSDate();
+}
+
+function parseJSTDate(inputStr) {
+  const now = DateTime.now().setZone('Asia/Tokyo');
+
+  let dt;
+
+  // パターン1: YYYY-MM-DD HH:mm
+  if (/^\d{4}-\d{1,2}-\d{1,2} \d{1,2}:\d{1,2}$/.test(inputStr)) {
+    dt = DateTime.fromFormat(inputStr, 'yyyy-M-d H:m', { zone: 'Asia/Tokyo' });
+  }
+  // パターン2: MM-DD HH:mm（年は現在年）
+  else if (/^\d{1,2}-\d{1,2} \d{1,2}:\d{1,2}$/.test(inputStr)) {
+    dt = DateTime.fromFormat(`${now.year}-${inputStr}`, 'yyyy-M-d H:m', { zone: 'Asia/Tokyo' });
+  }
+  // パターン3: HH:mm（年月日は現在の日付）
+  else if (/^\d{1,2}:\d{1,2}$/.test(inputStr)) {
+    dt = DateTime.fromFormat(`${now.toFormat('yyyy-MM-dd')} ${inputStr}`, 'yyyy-MM-dd H:m', { zone: 'Asia/Tokyo' });
+  }
+  else {
+    throw new Error(`不正な日付形式です: ${inputStr}`);
+  }
+
+  if (!dt.isValid) {
+    throw new Error(`日付の解析に失敗しました: ${dt.invalidExplanation}`);
+  }
+
+  return dt.toUTC().toJSDate();
 }
 
 client.login(TOKEN);
