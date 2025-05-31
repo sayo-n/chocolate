@@ -311,6 +311,50 @@ client.on('interactionCreate', async interaction => {
 
     return interaction.reply(`✅ <@${user.id}> を **${event.title}** の優先対象に追加しました。`);
   }
+
+  if (interaction.commandName === 'lottery') {
+    if (!allowedUserIds.includes(interaction.user.id)) {
+      return interaction.reply({ content: '❌ あなたにはこのコマンドの使用権限がありません。', ephemeral: true });
+    }
+
+    const at = interaction.options.getString('at'); // participants / winners
+    const edit = interaction.options.getString('edit'); // add / remove
+    const eventId = interaction.options.getString('id');
+    const user = interaction.options.getUser('user');
+
+    if (!fs.existsSync('lottery.json')) {
+      return interaction.reply('❌ lottery.json が存在しません。');
+    }
+
+    const lotteryData = JSON.parse(fs.readFileSync('lottery.json', 'utf-8'));
+    const event = lotteryData[eventId];
+    if (!event) return interaction.reply('❓ 指定されたイベントIDが見つかりません。');
+
+    if (!event[at]) event[at] = [];
+
+    const list = event[at];
+    const uid = user.id;
+
+    let response = '';
+    if (edit === 'add') {
+      if (!list.includes(uid)) {
+        list.push(uid);
+        response = `✅ <@${uid}> を **${at}** に追加しました。`;
+      } else {
+        response = `⚠️ <@${uid}> はすでに **${at}** に存在します。`;
+      }
+    } else if (edit === 'remove') {
+      if (list.includes(uid)) {
+        event[at] = list.filter(id => id !== uid);
+        response = `🗑️ <@${uid}> を **${at}** から削除しました。`;
+      } else {
+        response = `⚠️ <@${uid}> は **${at}** に存在しません。`;
+      }
+    }
+
+    fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
+    return interaction.reply({ content: response, allowedMentions: { users: [] }});
+  } 
 });
 
 // グローバルスラッシュコマンド
@@ -364,7 +408,40 @@ async function registerGlobalCommands() {
           .addChoices(
             { name: 'Fire Ant Hell', value: 'Fire Ant Hell' },
             { name: 'Ocean', value: 'Ocean' }
-          ))
+          )),
+
+    new SlashCommandBuilder()
+      .setName('lottery')
+      .setDescription('抽選イベントにユーザーを追加/削除する')
+      .addStringOption(opt =>
+        opt.setName('id')
+          .setDescription('イベントID')
+          .setRequired(true)
+      )
+      .addStringOption(opt =>
+        opt.setName('at')
+        .setDescription('対象フィールド')
+        .setRequired(true)
+        .addChoices(
+          { name: 'participants', value: 'participants' },
+          { name: 'winners', value: 'winners' }
+        )
+      )
+      .addStringOption(opt =>
+        opt.setName('edit')
+          .setDescription('操作内容')
+          .setRequired(true)
+          .addChoices(
+            { name: 'add', value: 'add' },
+            { name: 'remove', value: 'remove' }
+          )
+      )
+
+      .addUserOption(opt =>
+        opt.setName('user')
+          .setDescription('対象ユーザー')
+          .setRequired(true)
+      )
 
   ].map(cmd => cmd.toJSON());
 
@@ -377,34 +454,6 @@ async function registerGlobalCommands() {
   } catch (error) {
     console.error('❌ グローバルコマンド登録エラー:', error);
   }
-}
-
-function parseJSTDate(inputStr) {
-  const now = DateTime.now().setZone('Asia/Tokyo');
-
-  let dt;
-
-  // パターン1: YYYY-MM-DD HH:mm
-  if (/^\d{4}-\d{1,2}-\d{1,2} \d{1,2}:\d{1,2}$/.test(inputStr)) {
-    dt = DateTime.fromFormat(inputStr, 'yyyy-M-d H:m', { zone: 'Asia/Tokyo' });
-  }
-  // パターン2: MM-DD HH:mm（年は現在年）
-  else if (/^\d{1,2}-\d{1,2} \d{1,2}:\d{1,2}$/.test(inputStr)) {
-    dt = DateTime.fromFormat(`${now.year}-${inputStr}`, 'yyyy-M-d H:m', { zone: 'Asia/Tokyo' });
-  }
-  // パターン3: HH:mm（年月日は現在の日付）
-  else if (/^\d{1,2}:\d{1,2}$/.test(inputStr)) {
-    dt = DateTime.fromFormat(`${now.toFormat('yyyy-MM-dd')} ${inputStr}`, 'yyyy-MM-dd H:m', { zone: 'Asia/Tokyo' });
-  }
-  else {
-    throw new Error(`不正な日付形式です: ${inputStr}`);
-  }
-
-  if (!dt.isValid) {
-    throw new Error(`日付の解析に失敗しました: ${dt.invalidExplanation}`);
-  }
-
-  return dt.toUTC().toJSDate();
 }
 
 function parseJSTDate(inputStr) {
