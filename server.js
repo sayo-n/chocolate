@@ -16,7 +16,7 @@ const client = new Client({
 client.once('ready', async () => {
   console.log('✅ Bot is ready.');
   // コマンドを登録
-  //await registerGlobalCommands();
+  await registerGlobalCommands();
 });
 
 // スラッシュコマンドの処理
@@ -38,6 +38,9 @@ client.on('interactionCreate', async interaction => {
     }
     const unixSeconds = Math.floor(endsAt.getTime() / 1000);
     const formatted = `<t:${unixSeconds}:f>`;
+    const rqBiome = interaction.options.getString('rqbiome');
+    const rqScore = interaction.options.getNumber('rqscore');
+    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), participants: [], ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
 
 
     const eventId = `${interaction.id}-${Date.now()}`;
@@ -51,11 +54,11 @@ client.on('interactionCreate', async interaction => {
       .setStyle(ButtonStyle.Primary);
 
     const row = new ActionRowBuilder().addComponents(button);
-
-    await interaction.reply({
-      content: `🎉 **${title}** 応募受付中！\n〆切: ${formatted}\nイベントID: \`${eventId}\``,
-      components: [row]
-    });
+    let msg = `🎉 **${title}** 応募受付中！\n〆切: ${formatted}\nイベントID: \`${eventId}\``;
+    if (rqBiome || rqScore) {
+      msg += `\n📌 要件: ${rqBiome ? `Biome: ${rqBiome}` : ''}${rqBiome && rqScore ? ', ' : ''}${rqScore ? `Score: ${rqScore}` : ''}`;
+    }
+    await interaction.reply({ content: msg, components: [row] });
   }
 
   if (interaction.commandName === 'draw-winner') {if (interaction.commandName === 'draw-winner') {
@@ -395,7 +398,6 @@ client.on('interactionCreate', async interaction => {
       }
     }
 
-
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
     return interaction.reply({ content: response, allowedMentions: { users: [] }});
   } 
@@ -410,7 +412,21 @@ async function registerGlobalCommands() {
       .addStringOption(opt =>
         opt.setName('title').setDescription('イベントのタイトル').setRequired(true))
       .addStringOption(opt =>
-        opt.setName('endtime').setDescription('終了日時（例: 2025-06-01 18:00）').setRequired(true)),
+        opt.setName('endtime').setDescription('終了日時（例: 2025-06-01 18:00）').setRequired(true)).
+        addStringOption(opt =>
+          opt.setName('rqbiome')
+          .setDescription('リクエストするBiome（任意）')
+          .setRequired(false)
+          .addChoices(
+            { name: 'Fire Ant Hell', value: 'Fire Ant Hell' },
+            { name: 'Ocean', value: 'Ocean' }
+          )      
+        )
+      .addNumberOption(opt =>
+        opt.setName('rqscore')
+        .setDescription('リクエストスコア（任意）')
+        .setRequired(false)
+      ),
 
     new SlashCommandBuilder()
       .setName('draw-winner')
