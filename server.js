@@ -124,6 +124,21 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: '⌛ 応募期間は終了しています。', ephemeral: true });
     }
 
+  if (event.rqScore && event.rqBiome) {
+    const scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
+    const userData = scoreData[interaction.user.id];
+
+    const biomeKey = `score-${event.rqBiome}`;
+    const userScore = userData?.[biomeKey] ?? 0;
+
+    if (userScore < event.rqScore) {
+    return interaction.reply({
+        content: `❌ あなたのスコア（${userScore}）は、このイベントの条件（${event.rqBiome}: ${event.rqScore}）を満たしていません。`,
+        ephemeral: true
+      });
+    }
+  } 
+
     const alreadyApplied = event.participants.includes(interaction.user.id);
 
     if (alreadyApplied) {
@@ -161,6 +176,10 @@ client.on('interactionCreate', async interaction => {
     const index = event.participants.indexOf(interaction.user.id);
     if (index === -1) {
       return interaction.reply({ content: '❓ 応募していないため、取り消せません。', ephemeral: true });
+    }
+
+    if (event.prioritized && event.prioritized.includes(interaction.user.id)) {
+      event.prioritized = event.prioritized.filter(id => id !== interaction.user.id);
     }
 
     event.participants.splice(index, 1);
@@ -336,21 +355,46 @@ client.on('interactionCreate', async interaction => {
     const uid = user.id;
 
     let response = '';
-    if (edit === 'add') {
-      if (!list.includes(uid)) {
-        list.push(uid);
-        response = `✅ <@${uid}> を **${at}** に追加しました。`;
-      } else {
-        response = `⚠️ <@${uid}> はすでに **${at}** に存在します。`;
+
+    if (at === 'prioritize') {
+      if (!event.participants.includes(uid)) {
+        return interaction.reply({ content: `⚠️ <@${uid}> は参加者ではないため、prioritize に追加できません。`, ephemeral: true });
       }
-    } else if (edit === 'remove') {
-      if (list.includes(uid)) {
-        event[at] = list.filter(id => id !== uid);
-        response = `🗑️ <@${uid}> を **${at}** から削除しました。`;
-      } else {
-        response = `⚠️ <@${uid}> は **${at}** に存在しません。`;
+      if (!event.prioritized) event.prioritized = [];
+
+      if (edit === 'add') {
+        if (!event.prioritized.includes(uid)) {
+          event.prioritized.push(uid);
+          response = `✅ <@${uid}> を **prioritize** に追加しました。`;
+        } else {
+          response = `⚠️ <@${uid}> はすでに **prioritize** に存在します。`;
+        }
+      } else if (edit === 'remove') {
+        if (event.prioritized.includes(uid)) {
+          event.prioritized = event.prioritized.filter(id => id !== uid);
+          response = `🗑️ <@${uid}> を **prioritize** から削除しました。`;
+        } else {
+          response = `⚠️ <@${uid}> は **prioritize** に存在しません。`;
+        }
+      }
+    }else{
+      if (edit === 'add') {
+        if (!list.includes(uid)) {
+          list.push(uid);
+          response = `✅ <@${uid}> を **${at}** に追加しました。`;
+        } else {
+          response = `⚠️ <@${uid}> はすでに **${at}** に存在します。`;
+        }
+      } else if (edit === 'remove') {
+        if (list.includes(uid)) {
+          event[at] = list.filter(id => id !== uid);
+          response = `🗑️ <@${uid}> を **${at}** から削除しました。`;
+        } else {
+          response = `⚠️ <@${uid}> は **${at}** に存在しません。`;
+        }
       }
     }
+
 
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
     return interaction.reply({ content: response, allowedMentions: { users: [] }});
@@ -375,14 +419,6 @@ async function registerGlobalCommands() {
         opt.setName('eventid').setDescription('イベントID').setRequired(true))
       .addIntegerOption(opt =>
         opt.setName('winners').setDescription('当選者数').setRequired(false)),
-
-    new SlashCommandBuilder()
-      .setName('prioritize')
-      .setDescription('抽選の優先権を与えます。')
-      .addStringOption(option => 
-        option.setName('eventid').setDescription('イベントID').setRequired(true))
-      .addUserOption(option =>
-        option.setName('user').setDescription('優先ユーザー').setRequired(true)),
 
     new SlashCommandBuilder()
       .setName('update-score')
@@ -424,7 +460,9 @@ async function registerGlobalCommands() {
         .setRequired(true)
         .addChoices(
           { name: 'participants', value: 'participants' },
-          { name: 'winners', value: 'winners' }
+          { name: 'winners', value: 'winners' },
+          { name: 'prioritize', value: 'prioritized' }
+
         )
       )
       .addStringOption(opt =>
