@@ -40,12 +40,13 @@ client.on('interactionCreate', async interaction => {
     const formatted = `<t:${unixSeconds}:f>`;
     const rqBiome = interaction.options.getString('rqbiome');
     const rqScore = interaction.options.getNumber('rqscore');
-    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), participants: [], ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
 
 
     const eventId = `${interaction.id}-${Date.now()}`;
+
     const lotteryData = fs.existsSync('lottery.json') ? JSON.parse(fs.readFileSync('lottery.json', 'utf-8')) : {};
-    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), participants: [] };
+    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), participants: [], ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
+
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
 
     const button = new ButtonBuilder()
@@ -61,7 +62,7 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply({ content: msg, components: [row] });
   }
 
-  if (interaction.commandName === 'draw-winner') {if (interaction.commandName === 'draw-winner') {
+  if (interaction.commandName === 'draw-winner') {
     const eventId = interaction.options.getString('eventid');
     const winnerCount = interaction.options.getInteger('winners');
 
@@ -109,7 +110,6 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply({
       content:`🎊 **${event.title}** の抽選結果: \n🏆 **当選者（${winners.length}名）**: \n${winners.map(id => `・<@${id}>`).join(' ')} \n😢 **落選者（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・<@${id}>`).join(' ') : '（なし）'}`,
       allowedMentions: { users: [] }});
-    }
   }
 
   if (interaction.isButton() && interaction.customId.startsWith('lottery_')) {
@@ -412,20 +412,18 @@ async function registerGlobalCommands() {
       .addStringOption(opt =>
         opt.setName('title').setDescription('イベントのタイトル').setRequired(true))
       .addStringOption(opt =>
-        opt.setName('endtime').setDescription('終了日時（例: 2025-06-01 18:00）').setRequired(true)).
-        addStringOption(opt =>
-          opt.setName('rqbiome')
-          .setDescription('リクエストするBiome（任意）')
-          .setRequired(false)
-          .addChoices(
-            { name: 'Fire Ant Hell', value: 'Fire Ant Hell' },
-            { name: 'Ocean', value: 'Ocean' }
-          )      
-        )
+        opt.setName('endtime').setDescription('終了日時（例: 2025-06-01 18:00）').setRequired(true))
+      .addStringOption(opt =>
+          opt.setName('rqbiome').setDescription('リクエストするBiome（任意）').setRequired(false)
+            .addChoices(
+              { name: 'Fire Ant Hell', value: 'Fire Ant Hell' },
+              { name: 'Ocean', value: 'Ocean' }
+            )
+          )
       .addNumberOption(opt =>
         opt.setName('rqscore')
-        .setDescription('リクエストスコア（任意）')
-        .setRequired(false)
+          .setDescription('リクエストスコア（任意）')
+          .setRequired(false)
       ),
 
     new SlashCommandBuilder()
