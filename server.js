@@ -1,7 +1,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const {DateTime} = require('luxon');
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
 const TOKEN = process.env.TOKEN, CLIENT_ID = process.env.CLIENT_ID
 const {allowedUserIds} = require('./config.json');
 
@@ -118,13 +118,13 @@ client.on('interactionCreate', async interaction => {
     const event = lotteryData[eventId];
 
     if (!event) {
-      return interaction.reply({ content: '❌ イベントが存在しません。', ephemeral: true });
+      return interaction.reply({ content: '❌ イベントが存在しません。', flags: MessageFlags.Ephemeral });
     }
 
     const now = new Date();
     const endDate = new Date(event.endsAt);
     if (now > endDate) {
-      return interaction.reply({ content: '⌛ 応募期間は終了しています。', ephemeral: true });
+      return interaction.reply({ content: '⌛ 応募期間は終了しています。', flags: MessageFlags.Ephemeral });
     }
 
   if (event.rqScore && event.rqBiome) {
@@ -137,7 +137,7 @@ client.on('interactionCreate', async interaction => {
     if (userScore < event.rqScore) {
     return interaction.reply({
         content: `❌ あなたのスコア（${userScore}）は、このイベントの条件（${event.rqBiome}: ${event.rqScore}）を満たしていません。`,
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   } 
@@ -156,14 +156,14 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({
         content: '📌 すでに応募しています。応募を取り消すには以下のボタンを押してください。',
         components: [row],
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     } else {
       // 応募処理
       event.participants.push(interaction.user.id);
       fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
 
-      return interaction.reply({ content: '✅ 応募を受け付けました！', ephemeral: true });
+      return interaction.reply({ content: '✅ 応募を受け付けました！', flags: MessageFlags.Ephemeral });
     }
   }
 
@@ -173,12 +173,12 @@ client.on('interactionCreate', async interaction => {
     const event = lotteryData[eventId];
 
     if (!event) {
-      return interaction.reply({ content: '❌ イベントが存在しません。', ephemeral: true });
+      return interaction.reply({ content: '❌ イベントが存在しません。', flags: MessageFlags.Ephemeral });
     }
 
     const index = event.participants.indexOf(interaction.user.id);
     if (index === -1) {
-      return interaction.reply({ content: '❓ 応募していないため、取り消せません。', ephemeral: true });
+      return interaction.reply({ content: '❓ 応募していないため、取り消せません。', flags: MessageFlags.Ephemeral });
     }
 
     if (event.prioritized && event.prioritized.includes(interaction.user.id)) {
@@ -188,7 +188,7 @@ client.on('interactionCreate', async interaction => {
     event.participants.splice(index, 1);
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
 
-    return interaction.reply({ content: '🗑️ 応募を取り消しました。', ephemeral: true });
+    return interaction.reply({ content: '🗑️ 応募を取り消しました。', flags: MessageFlags.Ephemeral });
   }
 
   if (interaction.commandName === 'create-squad') {
@@ -261,13 +261,15 @@ client.on('interactionCreate', async interaction => {
 
     // 他人の更新には権限が必要
     if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
-      return interaction.reply({ content: '❌ 他ユーザーのスコアを更新する権限がありません。', ephemeral: true });
+      return interaction.reply({ content: '❌ 他ユーザーのスコアを更新する権限がありません。', flags: MessageFlags.Ephemeral });
     }
 
     const eggInput = interaction.options.getNumber('egg');
     const scoreInputs = {
       'score-Fire Ant Hell': interaction.options.getNumber('score_fire_ant_hell'),
-      'score-Ocean': interaction.options.getNumber('score_ocean')
+      'score-Ocean': interaction.options.getNumber('score_ocean'),
+      'score-Normal Ant Hell': interaction.options.getNumber('score_Normal_Ant_Hell'),
+      'score-Desert': interaction.options.getNumber('score-Desert')
     };
 
     let scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
@@ -298,12 +300,12 @@ client.on('interactionCreate', async interaction => {
       replyLines.push(`・${k}: ${v}`);
     }
 
-    return interaction.reply({ content: replyLines.join('\n'), ephemeral: true });
+    return interaction.reply({ content: replyLines.join('\n'), flags: MessageFlags.Ephemeral });
   }
   //使用権原必要なコマンド
   if (interaction.commandName === 'prioritize') {
     if (!allowedUserIds.includes(interaction.user.id)) {
-      await interaction.reply({ content: '❌ あなたにはこのコマンドの使用権限がありません。', ephemeral: true });
+      await interaction.reply({ content: '❌ あなたにはこのコマンドの使用権限がありません。', flags: MessageFlags.Ephemeral });
       return;
     }
     const eventId = interaction.options.getString('eventid');
@@ -336,10 +338,10 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.commandName === 'lottery') {
     if (!allowedUserIds.includes(interaction.user.id)) {
-      return interaction.reply({ content: '❌ あなたにはこのコマンドの使用権限がありません。', ephemeral: true });
+      return interaction.reply({ content: '❌ あなたにはこのコマンドの使用権限がありません。', flags: MessageFlags.Ephemeral });
     }
 
-    const at = interaction.options.getString('at'); // participants / winners
+    const at = interaction.options.getString('at'); // participants / winners / prioritized
     const edit = interaction.options.getString('edit'); // add / remove
     const eventId = interaction.options.getString('id');
     const user = interaction.options.getUser('user');
@@ -360,41 +362,25 @@ client.on('interactionCreate', async interaction => {
     let response = '';
 
     if (at === 'prioritize') {
-      if (!event.participants.includes(uid)) {
-        return interaction.reply({ content: `⚠️ <@${uid}> は参加者ではないため、prioritize に追加できません。`, ephemeral: true });
-      }
-      if (!event.prioritized) event.prioritized = [];
+      if (!list) list = [];
+    }
 
-      if (edit === 'add') {
-        if (!event.prioritized.includes(uid)) {
-          event.prioritized.push(uid);
-          response = `✅ <@${uid}> を **prioritize** に追加しました。`;
-        } else {
-          response = `⚠️ <@${uid}> はすでに **prioritize** に存在します。`;
+    if (edit === 'add') {
+      if (!list.includes(uid)) {
+        if (!event.participants.includes(uid)){
+          event.participants.push(uid);
         }
-      } else if (edit === 'remove') {
-        if (event.prioritized.includes(uid)) {
-          event.prioritized = event.prioritized.filter(id => id !== uid);
-          response = `🗑️ <@${uid}> を **prioritize** から削除しました。`;
-        } else {
-          response = `⚠️ <@${uid}> は **prioritize** に存在しません。`;
-        }
+        list.push(uid);
+        response = `✅ <@${uid}> を **${at}** に追加しました。`;
+      } else {
+        response = `⚠️ <@${uid}> はすでに **${at}** に存在します。`;
       }
-    }else{
-      if (edit === 'add') {
-        if (!list.includes(uid)) {
-          list.push(uid);
-          response = `✅ <@${uid}> を **${at}** に追加しました。`;
-        } else {
-          response = `⚠️ <@${uid}> はすでに **${at}** に存在します。`;
-        }
-      } else if (edit === 'remove') {
-        if (list.includes(uid)) {
-          event[at] = list.filter(id => id !== uid);
-          response = `🗑️ <@${uid}> を **${at}** から削除しました。`;
-        } else {
-          response = `⚠️ <@${uid}> は **${at}** に存在しません。`;
-        }
+    } else if (edit === 'remove') {
+      if (list.includes(uid)) {
+        event[at] = list.filter(id => id !== uid);
+        response = `🗑️ <@${uid}> を **${at}** から削除しました。`;
+      } else {
+        response = `⚠️ <@${uid}> は **${at}** に存在しません。`;
       }
     }
 
@@ -417,14 +403,13 @@ async function registerGlobalCommands() {
           opt.setName('rqbiome').setDescription('リクエストするBiome（任意）').setRequired(false)
             .addChoices(
               { name: 'Fire Ant Hell', value: 'Fire Ant Hell' },
-              { name: 'Ocean', value: 'Ocean' }
+              { name: 'Ocean', value: 'Ocean' },
+              { name: 'Normal Ant Hell', value: 'Normal Ant Hell'},
+              { name: 'Desert', value: 'Desert'}
             )
           )
       .addNumberOption(opt =>
-        opt.setName('rqscore')
-          .setDescription('リクエストスコア（任意）')
-          .setRequired(false)
-      ),
+        opt.setName('rqscore').setDescription('リクエストスコア（任意）').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('draw-winner')
@@ -444,7 +429,11 @@ async function registerGlobalCommands() {
       .addNumberOption(opt =>
         opt.setName('score_fire_ant_hell').setDescription('Fire Ant Hell のスコア').setRequired(false))
       .addNumberOption(opt =>
-        opt.setName('score_ocean').setDescription('Ocean のスコア').setRequired(false)),
+        opt.setName('score_ocean').setDescription('Ocean のスコア').setRequired(false))
+      .addNumberOption(opt =>
+        opt.setName('score_normal_ant_hell').setDescription('Normal Ant Hell のスコア').setRequired(false))
+      .addNumberOption(opt =>
+        opt.setName('score_desert').setDescription('Desert のスコア').setRequired(false)),
 
     new SlashCommandBuilder()
       .setName('create-squad')
@@ -457,43 +446,32 @@ async function registerGlobalCommands() {
           .setRequired(true)
           .addChoices(
             { name: 'Fire Ant Hell', value: 'Fire Ant Hell' },
-            { name: 'Ocean', value: 'Ocean' }
+            { name: 'Ocean', value: 'Ocean' },
+            { name: 'Normal Ant Hell', value: 'Normal Ant Hell'},
+            { name: 'Desert', value: 'Desert'}
           )),
 
     new SlashCommandBuilder()
       .setName('lottery')
       .setDescription('抽選イベントにユーザーを追加/削除する')
       .addStringOption(opt =>
-        opt.setName('id')
-          .setDescription('イベントID')
-          .setRequired(true)
-      )
+        opt.setName('id').setDescription('イベントID').setRequired(true))
       .addStringOption(opt =>
-        opt.setName('at')
-        .setDescription('対象フィールド')
-        .setRequired(true)
+        opt.setName('at').setDescription('対象フィールド').setRequired(true)
         .addChoices(
           { name: 'participants', value: 'participants' },
           { name: 'winners', value: 'winners' },
           { name: 'prioritize', value: 'prioritized' }
-
         )
       )
       .addStringOption(opt =>
-        opt.setName('edit')
-          .setDescription('操作内容')
-          .setRequired(true)
+        opt.setName('edit').setDescription('操作内容').setRequired(true)
           .addChoices(
             { name: 'add', value: 'add' },
             { name: 'remove', value: 'remove' }
-          )
-      )
-
+          ))
       .addUserOption(opt =>
-        opt.setName('user')
-          .setDescription('対象ユーザー')
-          .setRequired(true)
-      )
+        opt.setName('user').setDescription('対象ユーザー').setRequired(true))
 
   ].map(cmd => cmd.toJSON());
 
