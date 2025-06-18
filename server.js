@@ -19,10 +19,18 @@ client.once('ready', async () => {
   await registerGlobalCommands();
 });
 
+client.on('messageCreate', message => {
+  if (message.author.bot) return;
+
+  // メンションされたかどうかチェック
+  if (message.mentions.has(client.user)) {
+    message.reply('Ping!');
+  }
+});
+
 // スラッシュコマンドの処理
 
 client.on('interactionCreate', async interaction => {
-
   if (interaction.commandName === 'create-lottery') {
     const title = interaction.options.getString('title');
     const endtimeStr = interaction.options.getString('endtime');
@@ -256,51 +264,105 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply(msg);
   }
 
-  if (interaction.commandName === 'update-score') {
-    const targetUser = interaction.options.getUser('user') ?? interaction.user;
+    if (interaction.commandName === 'update-inventory') {
+    const input = interaction.options.getString('petal');
+  const targetUser = interaction.options.getUser('user') ?? interaction.user;
 
-    // 他人の更新には権限が必要
-    if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
-      return interaction.reply({ content: '❌ 他ユーザーのスコアを更新する権限がありません。', flags: MessageFlags.Ephemeral });
+  // 他人の更新には権限が必要
+  if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
+    return interaction.reply({ content: '❌ 他ユーザーの装備を更新する権限がありません。', flags: MessageFlags.Ephemeral });
+  }
+
+  const entries = input.split(',').map(e => e.trim());
+  const equipmentData = JSON.parse(fs.readFileSync('equipment.json', 'utf-8'));
+
+  const inventory = [];
+  const errors = [];
+  const seen = new Set();
+  
+  for (const entry of entries) {
+    const match = entry.match(/(Ultra|Super|Unique)\s+([a-zA-Z_]+)\s+(\d+)/i);
+    if (!match) {
+      errors.push(`❌ フォーマットエラー: "${entry}"`);
+      continue;
     }
 
-    const eggInput = interaction.options.getNumber('egg');
-    const scoreInputs = {
-      'score-Fire Ant Hell': interaction.options.getNumber('score_fire_ant_hell'),
-      'score-Ocean': interaction.options.getNumber('score_ocean'),
-      'score-Normal Ant Hell': interaction.options.getNumber('score_Normal_Ant_Hell'),
-      'score-Desert': interaction.options.getNumber('score-Desert')
-    };
+    const [, rarity, type, countStr] = match;
+    const key = `${rarity.charAt(0).toUpperCase() + rarity.slice(1).toLowerCase()} ${type}`;
+    const count = parseInt(countStr, 10);
 
-    let scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
-    const exists = targetUser.id in scoreData;
-    const existing = scoreData[targetUser.id] ?? {};
+    // 重複チェック
+    if (seen.has(key)) {
+      errors.push(`❌ 重複した装備があります: ${key}`);
+      continue;
+    }
+    seen.add(key);
 
-    // eggの初期化と更新
-    const newEgg = exists ? (eggInput != null ? eggInput : existing.egg ?? 0) : (eggInput != null ? eggInput : 0);
-
-    // 各スコアを初期化・更新
-    const newScores = {};
-    for (const key of Object.keys(scoreInputs)) {
-      newScores[key] = exists
-        ? (scoreInputs[key] != null ? scoreInputs[key] : existing[key] ?? 0)
-        : (scoreInputs[key] != null ? scoreInputs[key] : 0);
+    if (!(key in equipmentData)) {
+      errors.push(`❌ 未知の装備: "${key}"`);
+      continue;
     }
 
-    scoreData[targetUser.id] = {
-      egg: newEgg,
-      ...newScores
-    };
-
-    fs.writeFileSync('score.json', JSON.stringify(scoreData, null, 2), 'utf-8');
-
-    const replyLines = [`✅ <@${targetUser.id}> のデータを更新しました。`];
-    replyLines.push(`・egg: ${newEgg}`);
-    for (const [k, v] of Object.entries(newScores)) {
-      replyLines.push(`・${k}: ${v}`);
+    if (count == 0){
+      errors.push(`❌ 所持数エラー: ${entry}`)
     }
 
-    return interaction.reply({ content: replyLines.join('\n'), flags: MessageFlags.Ephemeral });
+    inventory.push({ name: key, count });
+  }
+
+  if (errors.length > 0) {
+    return interaction.reply({ content: errors.join('\n'), flags: MessageFlags.Ephemeral });
+  }
+
+  // スコア計算関数
+
+
+  // Biome別使用枠制限
+  const BIOME_SLOT_LIMITS = {
+    "Fire Ant Hell": 8,
+    "Normal Ant Hell": 7,
+    "Desert": 8,
+    "Ocean": 5
+  };
+
+  const biomeScores = {};
+  const biomeDetails = {};
+
+  for (const [biome, limit] of Object.entries(BIOME_SLOT_LIMITS)) {
+    const result = getMaxScoreGreedy(inventory, biome, equipmentData, limit);
+    biomeScores[`score-${biome}`] = result.score;
+    biomeDetails[biome] = result; // ← usedItems, usedSlots含む
+  }
+
+
+  // 保存処理
+  const scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
+  if (!scoreData[targetUser.id]) scoreData[targetUser.id] = {};
+
+  scoreData[targetUser.id] = {
+    ...scoreData[targetUser.id],
+    ...biomeScores,
+    inventory
+  };
+
+  fs.writeFileSync('score.json', JSON.stringify(scoreData, null, 2), 'utf-8');
+
+  const result = [`✅ Updated <@${targetUser.id}>'s inventory!`, `📦 Inventory:`];
+
+  for (const i of inventory) {
+    result.push(`・${i.name} ×${i.count}`);
+  }
+
+  result.push(`\n📊 score:`);
+  for (const [biome, detail] of Object.entries(biomeDetails)) {
+    const label = `score-${biome}`;
+    const itemsText = Object.entries(detail.usedItems)
+      .map(([name, count]) => `${name} x${count}`)
+      .join(', ');
+    result.push(`・${label}: ${detail.score} (${detail.usedSlots}) \`\`${itemsText}\`\``);
+  }
+
+  return interaction.reply({ content: result.join('\n'), flags: MessageFlags.bitfield=4096});
   }
   //使用権原必要なコマンド
   if (interaction.commandName === 'prioritize') {
@@ -420,20 +482,18 @@ async function registerGlobalCommands() {
         opt.setName('winners').setDescription('当選者数').setRequired(false)),
 
     new SlashCommandBuilder()
-      .setName('update-score')
-      .setDescription('ユーザーのegg値やスコアを更新する')
-      .addUserOption(opt =>
-        opt.setName('user').setDescription('対象ユーザー').setRequired(false))
-      .addNumberOption(opt =>
-       opt.setName('egg').setDescription('eggの値').setRequired(false))
-      .addNumberOption(opt =>
-        opt.setName('score_fire_ant_hell').setDescription('Fire Ant Hell のスコア').setRequired(false))
-      .addNumberOption(opt =>
-        opt.setName('score_ocean').setDescription('Ocean のスコア').setRequired(false))
-      .addNumberOption(opt =>
-        opt.setName('score_normal_ant_hell').setDescription('Normal Ant Hell のスコア').setRequired(false))
-      .addNumberOption(opt =>
-        opt.setName('score_desert').setDescription('Desert のスコア').setRequired(false)),
+      .setName('update-inventory')
+      .setDescription('インベントリの登録、更新を行う。')
+      .addStringOption(option => 
+        option.setName('petal')
+          .setDescription('ペタル')
+          .setRequired(true)
+      )
+      .addUserOption(option => 
+        option.setName('user')
+          .setDescription('ユーザー')
+          .setRequired(true)
+      ),
 
     new SlashCommandBuilder()
       .setName('create-squad')
@@ -512,6 +572,100 @@ function parseJSTDate(inputStr) {
   }
 
   return dt.toUTC().toJSDate();
+}
+
+function getMaxScoreGreedy(inventory, biome, equipmentData, slotLimit) {
+  const fixedItems = [];
+  const variableItems = [];
+
+  // golden_leaf をリスト化（slots=1, score=0）
+  let goldenLeafItems = [];
+  for (const { name, count } of inventory) {
+    if (name.toLowerCase().includes('golden_leaf')) {
+      for (let i = 0; i < count; i++) {
+        goldenLeafItems.push({ name, slot: 1, score: 0 });
+      }
+    }
+  }
+
+  const goldenMultipliers = [1, 1.2, 1.5, 1.9, 2.3, 2.9, 3.6, 4.4, 5.5, 6.8];
+
+  for (const { name, count } of inventory) {
+    const equip = equipmentData[name];
+    if (!equip || !equip.scores?.[biome]) continue;
+
+    if (Array.isArray(equip.slots)) {
+      const scoreMap = equip.scores[biome];
+      if (!scoreMap) continue;
+
+      variableItems.push({
+        name,
+        options: equip.slots.map(slot => {
+          let score = scoreMap[slot.toString()];
+          return typeof score === 'number' ? { slot, score } : null;
+        }).filter(Boolean)
+      });
+
+    } else {
+      const slot = equip.slots || 1;
+      let score = equip.scores[biome];
+
+      for (let i = 0; i < Math.min(count, 10); i++) {
+        fixedItems.push({ name, slot, score, efficiency: score / slot });
+      }
+    }
+  }
+
+  function greedyFill(items, remainingSlots, goldenMultiplier) {
+    const sorted = [...items].sort((a, b) => (b.score / b.slot) - (a.score / a.slot));
+    let used = 0;
+    let score = 0;
+    const usage = {};
+    for (const item of sorted) {
+      if (used + item.slot <= remainingSlots) {
+        used += item.slot;
+        let itemScore = item.score;
+        if (['beetle_egg', 'ant_egg', 'moon', 'wax'].some(keyword => item.name.toLowerCase().includes(keyword))) {
+          itemScore *= goldenMultiplier;
+        }
+        score += itemScore;
+        usage[item.name] = (usage[item.name] ?? 0) + 1;
+      }
+    }
+    return { score, usedSlots: used, usedItems: usage };
+  }
+
+  let bestResult = { score: 0, usedSlots: 0, usedItems: {} };
+
+  // golden_leaf の使い方パターンを全探索
+  for (let gUsed = 0; gUsed <= Math.min(goldenLeafItems.length, 9); gUsed++) {
+    const goldenMultiplier = goldenMultipliers[gUsed];
+
+    // golden_leaf を先に slots に詰める
+    const goldenUsedItems = goldenLeafItems.slice(0, gUsed);
+    const remainingFixedItems = [...fixedItems];
+
+    const usedItems = {};
+    goldenUsedItems.forEach(item => {
+      usedItems[item.name] = (usedItems[item.name] ?? 0) + 1;
+    });
+
+    const usedGoldenSlots = goldenUsedItems.length;
+    const greedy = greedyFill(remainingFixedItems, slotLimit - usedGoldenSlots, goldenMultiplier);
+
+    const totalScore = greedy.score;
+    const allItems = { ...usedItems, ...greedy.usedItems };
+
+    if (totalScore > bestResult.score) {
+      bestResult = {
+        score: Math.round(totalScore * 100) / 100,
+        usedSlots: usedGoldenSlots + greedy.usedSlots,
+        usedItems: allItems
+      };
+    }
+  }
+
+  return bestResult;
 }
 
 client.login(TOKEN);
