@@ -16,7 +16,7 @@ const client = new Client({
 client.once('ready', async () => {
   console.log('✅ Bot is ready.');
   // コマンドを登録
-  await registerGlobalCommands();
+  //await registerGlobalCommands();
 });
 
 client.on('messageCreate', message => {
@@ -429,9 +429,6 @@ client.on('interactionCreate', async interaction => {
 
     if (edit === 'add') {
       if (!list.includes(uid)) {
-        if (!event.participants.includes(uid)){
-          event.participants.push(uid);
-        }
         list.push(uid);
         response = `✅ <@${uid}> を **${at}** に追加しました。`;
       } else {
