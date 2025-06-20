@@ -3,7 +3,7 @@ const fs = require('fs');
 const {DateTime} = require('luxon');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
 const TOKEN = process.env.TOKEN, CLIENT_ID = process.env.CLIENT_ID
-const {allowedUserIds} = require('./config.json');
+const {allowedUserIds, lurerUserIds} = require('./config.json');
 
 const client = new Client({
   intents: [
@@ -22,10 +22,6 @@ client.once('ready', async () => {
 client.on('messageCreate', message => {
   if (message.author.bot) return;
 
-  // メンションされたかどうかチェック
-  if (message.mentions.has(client.user)) {
-    message.reply('Ping!');
-  }
 });
 
 // スラッシュコマンドの処理
@@ -53,7 +49,7 @@ client.on('interactionCreate', async interaction => {
     const eventId = `${interaction.id}-${Date.now()}`;
 
     const lotteryData = fs.existsSync('lottery.json') ? JSON.parse(fs.readFileSync('lottery.json', 'utf-8')) : {};
-    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), participants: [], ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
+    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), lurer: lurerUserIds, participants: [], ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
 
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
 
@@ -94,20 +90,29 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply('📭 応募者がいませんでした。');
     }
 
-    const prioritized = Array.isArray(event.prioritized) ? event.prioritized.filter(id => participants.includes(id)) : [];
-    const others = participants.filter(id => !prioritized.includes(id));
-    const shuffledOthers = others.sort(() => 0.5 - Math.random());
+const lurer = Array.isArray(event.lurer) ? event.lurer.filter(id => participants.includes(id)) : [];
+const prioritized = Array.isArray(event.prioritized) ? event.prioritized.filter(id => participants.includes(id) && !lurer.includes(id)) : [];
+const others = participants.filter(id => !lurer.includes(id) && !prioritized.includes(id));
+const shuffledOthers = others.sort(() => 0.5 - Math.random());
 
-    let winners;
-    if (!winnerCount || winnerCount >= participants.length) {
-      winners = [...prioritized, ...shuffledOthers];
-    } else {
-      winners = [...prioritized];
-      const remaining = winnerCount - winners.length;
-      if (remaining > 0) {
-        winners.push(...shuffledOthers.slice(0, remaining));
-      }
+let winners = [];
+
+if (!winnerCount || winnerCount >= participants.length) {
+  winners = [...lurer, ...prioritized, ...shuffledOthers];
+} else {
+  winners = [...lurer];
+  const remainingAfterSpecial = winnerCount - winners.length;
+  
+  if (remainingAfterSpecial > 0) {
+    winners.push(...prioritized.slice(0, remainingAfterSpecial));
+    const remainingAfterPrioritized = winnerCount - winners.length;
+
+    if (remainingAfterPrioritized > 0) {
+      winners.push(...shuffledOthers.slice(0, remainingAfterPrioritized));
     }
+  }
+}
+
 
     const losers = participants.filter(id => !winners.includes(id));
     event.winners = winners;
@@ -189,10 +194,6 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: '❓ 応募していないため、取り消せません。', flags: MessageFlags.Ephemeral });
     }
 
-    if (event.prioritized && event.prioritized.includes(interaction.user.id)) {
-      event.prioritized = event.prioritized.filter(id => id !== interaction.user.id);
-    }
-
     event.participants.splice(index, 1);
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
 
@@ -269,8 +270,8 @@ client.on('interactionCreate', async interaction => {
   const targetUser = interaction.options.getUser('user') ?? interaction.user;
 
   // 他人の更新には権限が必要
-  if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
-    return interaction.reply({ content: '❌ 他ユーザーの装備を更新する権限がありません。', flags: MessageFlags.Ephemeral });
+  if (!allowedUserIds.includes(interaction.user.id)) {
+    return interaction.reply({ content: '❌ ユーザーの装備を更新する権限がありません。', flags: MessageFlags.Ephemeral });
   }
 
   const entries = input.split(',').map(e => e.trim());
