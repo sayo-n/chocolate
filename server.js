@@ -363,8 +363,41 @@ if (!winnerCount || winnerCount >= participants.length) {
     result.push(`・${label}: ${detail.score} (${detail.usedSlots}) \`\`${itemsText}\`\``);
   }
 
-  return interaction.reply({ content: result.join('\n'), flags: MessageFlags.bitfield=4096});
+  return interaction.reply({ content: result.join('\n'), allowedMentions: { users: [] }});
   }
+
+  if (interaction.commandName === 'show-inventory') {
+    const targetUser = interaction.options.getUser('user') ?? interaction.user;
+
+    // 他人のインベントリ表示には権限が必要
+    if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
+      return interaction.reply({ content: '❌ 他人のインベントリを見る権限がありません。', flags: MessageFlags.Ephemeral });
+    }
+
+    const scoreData = fs.existsSync('score.json') ? JSON.parse(fs.readFileSync('score.json', 'utf-8')) : {};
+    const userData = scoreData[targetUser.id];
+
+    if (!userData) {
+      return interaction.reply({ content: `❓ <@${targetUser.id}> のインベントリデータが見つかりません。`, flags: MessageFlags.Ephemeral });
+    }
+
+    const inventory = userData.inventory ?? [];
+    const result = [`📦 <@${targetUser.id}> のインベントリ:`];
+
+    for (const item of inventory) {
+      result.push(`・${item.name} ×${item.count}`);
+    }
+
+    result.push(`\n📊 スコア:`);
+    for (const key of Object.keys(userData)) {
+      if (key.startsWith('score-')) {
+        result.push(`・${key}: ${userData[key]}`);
+      }
+    }
+
+    return interaction.reply({ content: result.join('\n'), allowedMentions: { users: [] }, flags: MessageFlags.Ephemeral});
+  }
+
   //使用権原必要なコマンド
   if (interaction.commandName === 'prioritize') {
     if (!allowedUserIds.includes(interaction.user.id)) {
@@ -404,7 +437,7 @@ if (!winnerCount || winnerCount >= participants.length) {
       return interaction.reply({ content: '❌ あなたにはこのコマンドの使用権限がありません。', flags: MessageFlags.Ephemeral });
     }
 
-    const at = interaction.options.getString('at'); // participants / winners / prioritized
+    const at = interaction.options.getString('at'); // participants / winners / prioritized / lurer
     const edit = interaction.options.getString('edit'); // add / remove
     const eventId = interaction.options.getString('id');
     const user = interaction.options.getUser('user');
@@ -519,7 +552,8 @@ async function registerGlobalCommands() {
         .addChoices(
           { name: 'participants', value: 'participants' },
           { name: 'winners', value: 'winners' },
-          { name: 'prioritize', value: 'prioritized' }
+          { name: 'prioritize', value: 'prioritized' },
+          { name: 'lurer', value : 'lurer'}
         )
       )
       .addStringOption(opt =>
@@ -529,7 +563,15 @@ async function registerGlobalCommands() {
             { name: 'remove', value: 'remove' }
           ))
       .addUserOption(opt =>
-        opt.setName('user').setDescription('対象ユーザー').setRequired(true))
+        opt.setName('user').setDescription('対象ユーザー').setRequired(true)),
+    new SlashCommandBuilder()
+      .setName('show-inventory')
+      .setDescription('インベントリを表示する')
+      .addUserOption(opt =>
+        opt.setName('user')
+          .setDescription('表示対象ユーザー')
+          .setRequired(false)
+  ),
 
   ].map(cmd => cmd.toJSON());
 
