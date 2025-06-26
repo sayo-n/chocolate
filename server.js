@@ -1,7 +1,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const {DateTime} = require('luxon');
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, EmbedBuilder } = require('discord.js');
 const TOKEN = process.env.TOKEN, CLIENT_ID = process.env.CLIENT_ID
 const {allowedUserIds, lurerUserIds} = require('./config.json');
 
@@ -49,9 +49,7 @@ client.on('interactionCreate', async interaction => {
     const eventId = `${interaction.id}-${Date.now()}`;
 
     const lotteryData = fs.existsSync('lottery.json') ? JSON.parse(fs.readFileSync('lottery.json', 'utf-8')) : {};
-    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), lurer: lurerUserIds, participants: [], ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
-
-    fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
+    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), participants: [], ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
 
     const button = new ButtonBuilder()
       .setCustomId(`lottery_${eventId}`)
@@ -59,11 +57,21 @@ client.on('interactionCreate', async interaction => {
       .setStyle(ButtonStyle.Primary);
 
     const row = new ActionRowBuilder().addComponents(button);
-    let msg = `🎉 **${title}** 応募受付中！\n〆切: ${formatted}\nイベントID: \`${eventId}\``;
-    if (rqBiome || rqScore) {
-      msg += `\n📌 要件: ${rqBiome ? `Biome: ${rqBiome}` : ''}${rqBiome && rqScore ? ', ' : ''}${rqScore ? `Score: ${rqScore}` : ''}`;
-    }
-    await interaction.reply({ content: msg, components: [row] });
+    
+    const embed = new EmbedBuilder()
+      .setTitle(title)
+      .setDescription(`endtime: ${formatted}\nbiome: ${rqBiome ?? '-'}\nscore: ${rqScore ?? '-'}`)
+      .addFields({
+        name: 'participants',
+        value: '（なし）',
+        inline: false
+      })
+      .setColor('#00b0f4')
+      .setFooter({ text: eventId })
+    const sent = await interaction.reply({components: [row], embeds: [embed], fetchReply: true });
+    lotteryData[eventId].messageId = sent.id;
+    fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
+
   }
 
   if (interaction.commandName === 'draw-winner') {
@@ -124,7 +132,7 @@ if (!winnerCount || winnerCount >= participants.length) {
       content:`🎊 **${event.title}** の抽選結果: \n🏆 **当選者（${winners.length}名）**: \n${winners.map(id => `・<@${id}>`).join(' ')} \n😢 **落選者（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・<@${id}>`).join(' ') : '（なし）'}`,
       allowedMentions: { users: [] }});
   }
-
+  
   if (interaction.isButton() && interaction.customId.startsWith('lottery_')) {
     const eventId = interaction.customId.replace('lottery_', '');
     const lotteryData = fs.existsSync('lottery.json') ? JSON.parse(fs.readFileSync('lottery.json', 'utf-8')) : {};
@@ -174,8 +182,9 @@ if (!winnerCount || winnerCount >= participants.length) {
     } else {
       // 応募処理
       event.participants.push(interaction.user.id);
+      // 埋め込み更新
+      await updateLotteryEmbed(interaction.channel, eventId, event);
       fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
-
       return interaction.reply({ content: '✅ 応募を受け付けました！', flags: MessageFlags.Ephemeral });
     }
   }
@@ -196,7 +205,7 @@ if (!winnerCount || winnerCount >= participants.length) {
 
     event.participants.splice(index, 1);
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
-
+    await updateLotteryEmbed(interaction.channel, eventId, event);
     return interaction.reply({ content: '🗑️ 応募を取り消しました。', flags: MessageFlags.Ephemeral });
   }
 
@@ -706,6 +715,39 @@ function getMaxScoreGreedy(inventory, biome, equipmentData, slotLimit) {
   }
 
   return bestResult;
+}
+
+async function updateLotteryEmbed(channel, eventId, event) {
+  const message = await channel.messages.fetch(event.messageId).catch(() => null);
+  if (!message) return;
+
+  const allParticipants = new Set(event.participants);
+  const prioritized = new Set(event.prioritized ?? []);
+  const prioritizedList = [...allParticipants].filter(id => prioritized.has(id));
+  const regularList = [...allParticipants].filter(id => !prioritized.has(id));
+
+  const lines = [
+    ...(prioritizedList.map(id => `🔷 <@${id}>`)),
+    ...(regularList.map(id => `・<@${id}>`))
+  ];
+
+  const participantText = lines.length > 0 ? lines.join('\n') : '（なし）';
+
+  const unixSeconds = Math.floor(new Date(event.endsAt).getTime() / 1000);
+  const formatted = `<t:${unixSeconds}:f>`;
+
+  const embed = new EmbedBuilder()
+    .setTitle(event.title)
+    .setDescription(`endtime: ${formatted}\nbiome: ${event.rqBiome ?? '-'}\nscore: ${event.rqScore ?? '-'}`)
+    .addFields({
+      name: `participants (${lines.length})`,
+      value: participantText,
+      inline: false
+    })
+    .setColor('#00b0f4')
+    .setFooter({ text: eventId })
+
+  await message.edit({ embeds: [embed], fetchReply: true });
 }
 
 client.login(TOKEN);
