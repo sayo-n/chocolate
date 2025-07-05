@@ -1,6 +1,5 @@
 {
   "Super ant_egg": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":2.9,
       "Desert": 4.1,
@@ -9,7 +8,6 @@
     }
   },
   "Super basic": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.7,
       "Desert": 0.7,
@@ -18,7 +16,6 @@
     }
   },
   "Super battery": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.6,
       "Desert": 3.3,
@@ -27,7 +24,6 @@
     }
   },
   "Super beetle_egg": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":2.9,
       "Desert": 4.1,
@@ -36,7 +32,6 @@
     }
   },
   "Super blood_stinger": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.4,
       "Desert": 2.8,
@@ -45,7 +40,6 @@
     }
   },
   "Super bone": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.5,
       "Desert": 2.0,
@@ -54,7 +48,6 @@
     }
   },
   "Unique bone": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":26.0,
       "Desert": 27.8,
@@ -63,7 +56,6 @@
     }
   },
   "Super bur": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.2,
       "Desert": 0.3,
@@ -72,7 +64,6 @@
     }
   },
   "Super cactus": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.5,
       "Desert": 0.6,
@@ -81,7 +72,6 @@
     }
   },
   "Super card": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.6,
       "Desert": 2.5,
@@ -90,7 +80,6 @@
     }
   },
   "Super carrot": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.2,
       "Desert": 0.2,
@@ -99,7 +88,6 @@
     }
   },
   "Super chip": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.1,
       "Desert": 2.1,
@@ -108,7 +96,6 @@
     }
   },
   "Super claw": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.2,
       "Desert": 0.2,
@@ -116,17 +103,43 @@
       "Ocean":0.2
     }
   },
+  "Ultra clover": {
+    "scores": {
+      "Fire Ant Hell": 0,
+      "Desert": 0,
+      "Normal Ant Hell": 0,
+      "Ocean": 0
+    },
+    "effect": {
+      "Super dice": {
+        "scores": {
+          "Fire Ant Hell": 0.6,
+          "Desert": 0.6,
+          "Normal Ant Hell": 0.6,
+          "Ocean": 0.6
+        }
+      }
+    }
+  },
   "Super clover": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.7,
       "Desert": 0.7,
       "Normal Ant Hell": 0.7,
       "Ocean":0.7
+    },
+    "effect": {
+      "Super dice": {
+        "scores": {
+          "Fire Ant Hell": 0.7,
+          "Desert": 0.7,
+          "Normal Ant Hell": 0.7,
+          "Ocean": 0.7
+        }
+      }
     }
   },
   "Super cog": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.9,
       "Desert": 1.7,
@@ -135,7 +148,6 @@
     }
   },
   "Super coin": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.0,
       "Desert": 1.0,
@@ -144,7 +156,6 @@
     }
   },
   "Super coral": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.1,
       "Desert": 2.2,
@@ -153,7 +164,6 @@
     }
   },
   "Super corn": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.8,
       "Desert": 1.9,
@@ -162,7 +172,6 @@
     }
   },
   "Unique crown": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":22.6,
       "Desert": 44.5,
@@ -171,7 +180,6 @@
     }
   },
   "Super dahlia": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.2,
       "Desert": 0.4,
@@ -180,7 +188,6 @@
     }
   },
   "Super dandelion": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.3,
       "Desert": 0.7,
@@ -189,16 +196,14 @@
     }
   },
   "Super dice": {
-    "slots": 1,
     "scores": {
-      "Fire Ant Hell":3.3,
-      "Desert": 3.3,
-      "Normal Ant Hell": 3.3,
-      "Ocean":3.3
+      "Fire Ant Hell":2.6,
+      "Desert": 2.6,
+      "Normal Ant Hell": 2.6,
+      "Ocean":2.6
     }
   },
   "Super domino": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.2,
       "Desert": 1.2,
@@ -207,7 +212,6 @@
     }
   },
   "Super fangs": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.7,
       "Desert": 0.7,
@@ -216,7 +220,6 @@
     }
   },
   "Super faster": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.4,
       "Desert": 0.8,
@@ -225,16 +228,14 @@
     }
   },
   "Super glass": {
-    "slots": 1,
     "scores": {
-      "Fire Ant Hell":1.8,
+      "Fire Ant Hell":1.2,
       "Desert": 2.4,
       "Normal Ant Hell": 1.2,
       "Ocean":1.8
     }
   },
   "Ultra golden_leaf": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0,
       "Desert": 0,
@@ -243,7 +244,6 @@
     }
   },
   "Super golden_leaf": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.9,
       "Desert": 1.7,
@@ -252,7 +252,6 @@
     }
   },
   "Super grapes": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.3,
       "Desert": 0.6,
@@ -261,7 +260,6 @@
     }
   },
   "Super heavy": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":2.0,
       "Desert": 1.9,
@@ -270,7 +268,6 @@
     }
   },
   "Super iris": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":2.3,
       "Desert": 4.5,
@@ -279,7 +276,6 @@
     }
   },
   "Super jelly": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":3.0,
       "Desert": 0.7,
@@ -288,7 +284,6 @@
     }
   },
   "Super laser": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":3.5,
       "Desert": 4.6,
@@ -297,7 +292,6 @@
     }
   },
   "Super leaf": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.9,
       "Desert": 1.7,
@@ -306,7 +300,6 @@
     }
   },
   "Super light": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.9,
       "Desert": 1.7,
@@ -315,7 +308,6 @@
     }
   },
   "Ultra lightning": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.5,
       "Desert": 1.1,
@@ -324,7 +316,6 @@
     }
   },
   "Super lightning": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.6,
       "Desert": 3.3,
@@ -333,25 +324,64 @@
     }
   },
   "Ultra magic_stick": {
-    "slots": [2,3,4,5,6,7,8],
     "scores": {
-      "Fire Ant Hell":{"2":0.8,"3":1.6,"4":2.4,"5":3.2,"6":4.1,"7":4.9,"8":5.7},
-      "Desert": {"2":1.2,"3":2.5,"4":3.7,"5":4.9,"6":6.1,"7":7.4,"8":8.6},
-      "Normal Ant Hell": {"2":0.8,"3":1.6,"4":2.5,"5":3.3,"6":4.1,"7":4.9,"8":5.7},
-      "Ocean":{"2":0.7,"3":1.4,"4":2.1,"5":2.8,"6":3.5,"7":4.2,"8":4.9}
+      "Fire Ant Hell":0,
+      "Desert": 0,
+      "Normal Ant Hell": 0,
+      "Ocean": 0
     }
   },
   "Super magic_stick": {
-    "slots": [2,3,4,5,6,7,8],
     "scores": {
-      "Fire Ant Hell": {"2":3.6,"3":7.1,"4":10.7,"5":14.2,"6":17.8,"7":21.3,"8":24.9},
-      "Desert": {"2":6.6,"3":13.2,"4":19.7,"5":26.3,"6":32.9,"7":39.5,"8":46.1},
-      "Normal Ant Hell": {"2":2.6,"3":5.2,"4":7.7,"5":10.3,"6":12.9,"7":15.5,"8":18.1},
-      "Ocean":{"2":3.4,"3":6.8,"4":10.3,"5":13.7,"6":17.1,"7":20.5,"8":23.9}
+      "Fire Ant Hell": 0,
+      "Desert": 0,
+      "Normal Ant Hell": 0,
+      "Ocean": 0
+    }
+  },
+  "Ultra magic_leaf": {
+    "effect": {
+      "Ultra magic_stick": {
+        "scores":{
+          "Fire Ant Hell": 0.8,
+          "Desert": 1.2,
+          "Normal Ant Hell": 0.8,
+          "Ocean": 0.7
+        }
+      },
+      "Super magic_stick": {
+        "scores": {
+          "Fire Ant Hell": 3.6,
+          "Desert": 6.6,
+          "Normal Ant Hell": 2.6,
+          "Ocean": 3.4
+        }
+      }
+    }
+  },
+  "Super magic_leaf": {
+    "scores": {
+    },
+    "effect": {
+      "Ultra magic_stick" : {
+        "scores": {
+          "Fire Ant Hell": 1.6,
+          "Desert": 2.5,
+          "Normal Ant Hell": 1.6,
+          "Ocean": 1.4
+        }
+      },
+      "Super magic_stick": {
+        "scores": {
+          "Fire Ant Hell": 7.1,
+          "Desert": 13.2,
+          "Normal Ant Hell": 5.2,
+          "Ocean": 6.8
+        }
+      }
     }
   },
   "Super mecha_missile": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.2,
       "Desert": 0.4,
@@ -360,7 +390,6 @@
     }
   },
   "Super missile": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.2,
       "Desert": 0.4,
@@ -369,7 +398,6 @@
     }
   },
   "Unique mjolnir": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":25.2,
       "Desert": 22.9,
@@ -378,7 +406,6 @@
     }
   },
   "Ultra moon": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":2,
       "Desert": 0.3,
@@ -387,7 +414,6 @@
     }
   },
   "Super moon": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":14.7,
       "Desert": 2.7,
@@ -396,7 +422,6 @@
     }
   },
   "Super orange": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.6,
       "Desert": 1.2,
@@ -404,8 +429,47 @@
       "Ocean":0.6
     }
   },
+  "Ultra orb": {
+    "effect": {
+      "Ultra magic_stick" : {
+        "scores": {
+          "Fire Ant Hell": 1,
+          "Desert": 1.4,
+          "Normal Ant Hell": 1,
+          "Ocean": 0.8
+        }
+      },
+      "Super magic_stick": {
+        "scores": {
+          "Fire Ant Hell": 4.2,
+          "Desert": 7.7,
+          "Normal Ant Hell": 3,
+          "Ocean": 4
+        }
+      }
+    }
+  },
+  "Super orb": {
+    "effect": {
+      "Ultra magic_stick" : {
+        "scores": {
+          "Fire Ant Hell": 1.9,
+          "Desert": 2.9,
+          "Normal Ant Hell": 1.9,
+          "Ocean": 1.6
+        }
+      },
+      "Super magic_stick": {
+        "scores": {
+          "Fire Ant Hell": 8.4,
+          "Desert": 15.5,
+          "Normal Ant Hell": 6.1,
+          "Ocean": 8
+        }
+      }
+    }
+  },
   "Super pearl": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.5,
       "Desert": 0.6,
@@ -414,7 +478,6 @@
     }
   },
   "Super peas": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.1,
       "Desert": 0.2,
@@ -423,7 +486,6 @@
     }
   },
   "Super pincer": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.6,
       "Desert": 3.3,
@@ -432,7 +494,6 @@
     }
   },
   "Super pollen": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.2,
       "Desert": 0.4,
@@ -441,7 +502,6 @@
     }
   },
   "Super rice": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.5,
       "Desert": 1.0,
@@ -450,7 +510,6 @@
     }
   },
   "Super rock": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.8,
       "Desert": 2.5,
@@ -459,7 +518,6 @@
     }
   },
   "Super rose": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.1,
       "Desert": 0.2,
@@ -468,7 +526,6 @@
     }
   },
   "Super salt": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.7,
       "Desert": 0.7,
@@ -477,7 +534,6 @@
     }
   },
   "Super sand": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.8,
       "Desert": 1.6,
@@ -486,7 +542,6 @@
     }
   },
   "Super shell": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.4,
       "Desert": 0.6,
@@ -495,7 +550,6 @@
     }
   },
   "Super soil": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.7,
       "Desert": 0.7,
@@ -504,7 +558,6 @@
     }
   },
   "Super starfish": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.3,
       "Desert": 0.3,
@@ -513,7 +566,6 @@
     }
   },
   "Unique starfish": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":2.0,
       "Desert": 3.0,
@@ -522,7 +574,6 @@
     }
   },
   "Ultra stick": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.3,
       "Desert": 0.5,
@@ -531,7 +582,6 @@
     }
   },
   "Super stick": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":2.8,
       "Desert": 4.0,
@@ -540,7 +590,6 @@
     }
   },
   "Super stinger": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.2,
       "Desert": 2.4,
@@ -549,7 +598,6 @@
     }
   },
   "Super talisman": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.7,
       "Desert": 0.7,
@@ -557,8 +605,14 @@
       "Ocean":0.7
     }
   },
+  "Ultra third_eye": {
+    "effect": {
+      "glass": {
+        "scores": {"Fire Ant Hell": 0.6}
+      }
+    }
+  },
   "Super tomato": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":2.5,
       "Desert": 2.5,
@@ -567,7 +621,6 @@
     }
   },
   "Super totem": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.7,
       "Desert": 0.7,
@@ -575,26 +628,7 @@
       "Ocean":0.7
     }
   },
-  "Ultra wax": {
-    "slots":1,
-    "scores": {
-      "Fire Ant Hell": 0.7,
-      "Desert": 0,
-      "Normal Ant Hell": 0,
-      "Ocean": -10
-    }
-  },
-  "Super wax": {
-    "slots":1,
-    "scores": {
-      "Fire Ant Hell": 2.1,
-      "Desert": 0,
-      "Normal Ant Hell": 0,
-      "Ocean": -30
-    }
-  },
   "Super web": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.6,
       "Desert": 0.3,
@@ -603,7 +637,6 @@
     }
   },
   "Super wing": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":1.6,
       "Desert": 1.3,
@@ -612,7 +645,6 @@
     }
   },
   "Super yin_yang": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.7,
       "Desert": 0.7,
@@ -621,7 +653,6 @@
     }
   },
   "Super yucca": {
-    "slots": 1,
     "scores": {
       "Fire Ant Hell":0.3,
       "Desert": 0.3,
