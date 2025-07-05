@@ -49,7 +49,7 @@ client.on('interactionCreate', async interaction => {
     const eventId = `${interaction.id}-${Date.now()}`;
 
     const lotteryData = fs.existsSync('lottery.json') ? JSON.parse(fs.readFileSync('lottery.json', 'utf-8')) : {};
-    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), participants: [], ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
+    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), lurer: lurerUserIds, participants: [], ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
 
     const button = new ButtonBuilder()
       .setCustomId(`lottery_${eventId}`)
@@ -186,6 +186,8 @@ if (!winnerCount || winnerCount >= participants.length) {
       await updateLotteryEmbed(interaction.channel, eventId, event);
       fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
       return interaction.reply({ content: '✅ 応募を受け付けました！', flags: MessageFlags.Ephemeral });
+      
+    
     }
   }
 
@@ -274,13 +276,13 @@ if (!winnerCount || winnerCount >= participants.length) {
     await interaction.reply(msg);
   }
 
-    if (interaction.commandName === 'update-inventory') {
+  if (interaction.commandName === 'update-inventory') {
     const input = interaction.options.getString('petal');
   const targetUser = interaction.options.getUser('user') ?? interaction.user;
 
   // 他人の更新には権限が必要
-  if (!allowedUserIds.includes(interaction.user.id)) {
-    return interaction.reply({ content: '❌ ユーザーの装備を更新する権限がありません。', flags: MessageFlags.Ephemeral });
+  if (targetUser.id !== interaction.user.id && !allowedUserIds.includes(interaction.user.id)) {
+    return interaction.reply({ content: '❌ 他ユーザーの装備を更新する権限がありません。', flags: MessageFlags.Ephemeral });
   }
 
   const entries = input.split(',').map(e => e.trim());
@@ -373,7 +375,7 @@ if (!winnerCount || winnerCount >= participants.length) {
   }
 
   return interaction.reply({ content: result.join('\n'), allowedMentions: { users: [] }});
-  }
+}
 
   if (interaction.commandName === 'show-inventory') {
     const targetUser = interaction.options.getUser('user') ?? interaction.user;
@@ -561,8 +563,9 @@ async function registerGlobalCommands() {
         .addChoices(
           { name: 'participants', value: 'participants' },
           { name: 'winners', value: 'winners' },
-          { name: 'prioritize', value: 'prioritized' },
-          { name: 'lurer', value : 'lurer'}
+          { name: 'x3', value: 'prioritized' },
+          { name: 'lurer', value : 'lurer'},
+          { name: '-1', value: '-1'}
         )
       )
       .addStringOption(opt =>
@@ -624,97 +627,58 @@ function parseJSTDate(inputStr) {
 }
 
 function getMaxScoreGreedy(inventory, biome, equipmentData, slotLimit) {
-  const fixedItems = [];
-  const variableItems = [];
+  const allEntries = [];
 
-  // golden_leaf をリスト化（slots=1, score=0）
-  let goldenLeafItems = [];
-  for (const { name, count } of inventory) {
-    if (name.toLowerCase().includes('golden_leaf')) {
-      for (let i = 0; i < count; i++) {
-        goldenLeafItems.push({ name, slot: 1, score: 0 });
-      }
+  for (const item of inventory) {
+    for (let i = 0; i < item.count; i++) {
+      allEntries.push(item.name);
     }
   }
 
-  const goldenMultipliers = [1, 1.2, 1.5, 1.9, 2.3, 2.9, 3.6, 4.4, 5.5, 6.8];
+  const baseScores = {};
+  for (const equip of allEntries) {
+    baseScores[equip] = (baseScores[equip] ?? 0) + (equipmentData[equip]?.scores?.[biome] ?? 0);
+  }
 
-  for (const { name, count } of inventory) {
-    const equip = equipmentData[name];
-    if (!equip || !equip.scores?.[biome]) continue;
+  const sortedEquip = [...allEntries].sort((a, b) => {
+    const aScore = equipmentData[a]?.scores?.[biome] ?? 0;
+    const bScore = equipmentData[b]?.scores?.[biome] ?? 0;
+    return bScore - aScore;
+  });
 
-    if (Array.isArray(equip.slots)) {
-      const scoreMap = equip.scores[biome];
-      if (!scoreMap) continue;
+  const selected = [];
+  const usedItems = {};
 
-      variableItems.push({
-        name,
-        options: equip.slots.map(slot => {
-          let score = scoreMap[slot.toString()];
-          return typeof score === 'number' ? { slot, score } : null;
-        }).filter(Boolean)
-      });
+  for (const equip of sortedEquip) {
+    if (selected.length >= slotLimit) break;
+    selected.push(equip);
+    usedItems[equip] = (usedItems[equip] ?? 0) + 1;
+  }
 
-    } else {
-      const slot = equip.slots || 1;
-      let score = equip.scores[biome];
+  const appliedEffects = {};
+  for (const equip of selected) {
+    const effect = equipmentData[equip]?.effect;
+    if (!effect) continue;
 
-      for (let i = 0; i < Math.min(count, 10); i++) {
-        fixedItems.push({ name, slot, score, efficiency: score / slot });
-      }
+    for (const target in effect) {
+      const bonus = effect[target]?.scores?.[biome] ?? 0;
+      appliedEffects[target] = (appliedEffects[target] ?? 0) + bonus;
     }
   }
 
-  function greedyFill(items, remainingSlots, goldenMultiplier) {
-    const sorted = [...items].sort((a, b) => (b.score / b.slot) - (a.score / a.slot));
-    let used = 0;
-    let score = 0;
-    const usage = {};
-    for (const item of sorted) {
-      if (used + item.slot <= remainingSlots) {
-        used += item.slot;
-        let itemScore = item.score;
-        if (['beetle_egg', 'ant_egg', 'moon', 'wax'].some(keyword => item.name.toLowerCase().includes(keyword))) {
-          itemScore *= goldenMultiplier;
-        }
-        score += itemScore;
-        usage[item.name] = (usage[item.name] ?? 0) + 1;
-      }
-    }
-    return { score, usedSlots: used, usedItems: usage };
+  // 最終スコア計算（効果込み）
+  let totalScore = 0;
+  for (const equip of selected) {
+    const base = equipmentData[equip]?.scores?.[biome] ?? 0;
+    const bonus = appliedEffects[equip] ?? 0;
+    totalScore += base + bonus;
   }
 
-  let bestResult = { score: 0, usedSlots: 0, usedItems: {} };
-
-  // golden_leaf の使い方パターンを全探索
-  for (let gUsed = 0; gUsed <= Math.min(goldenLeafItems.length, 9); gUsed++) {
-    const goldenMultiplier = goldenMultipliers[gUsed];
-
-    // golden_leaf を先に slots に詰める
-    const goldenUsedItems = goldenLeafItems.slice(0, gUsed);
-    const remainingFixedItems = [...fixedItems];
-
-    const usedItems = {};
-    goldenUsedItems.forEach(item => {
-      usedItems[item.name] = (usedItems[item.name] ?? 0) + 1;
-    });
-
-    const usedGoldenSlots = goldenUsedItems.length;
-    const greedy = greedyFill(remainingFixedItems, slotLimit - usedGoldenSlots, goldenMultiplier);
-
-    const totalScore = greedy.score;
-    const allItems = { ...usedItems, ...greedy.usedItems };
-
-    if (totalScore > bestResult.score) {
-      bestResult = {
-        score: Math.round(totalScore * 100) / 100,
-        usedSlots: usedGoldenSlots + greedy.usedSlots,
-        usedItems: allItems
-      };
-    }
-  }
-
-  return bestResult;
+  return {
+    score: totalScore,
+    usedSlots: selected.length,
+    usedItems
+  };
 }
 
 async function updateLotteryEmbed(channel, eventId, event) {
@@ -723,12 +687,17 @@ async function updateLotteryEmbed(channel, eventId, event) {
 
   const allParticipants = new Set(event.participants);
   const prioritized = new Set(event.prioritized ?? []);
-  const prioritizedList = [...allParticipants].filter(id => prioritized.has(id));
-  const regularList = [...allParticipants].filter(id => !prioritized.has(id));
+  const lurer = new Set(event.lurer ?? []);
+
+  // 優先順を定義：special → prioritized → regular
+  const lurerList = [...allParticipants].filter(id => lurer.has(id));
+  const prioritizedList = [...allParticipants].filter(id => prioritized.has(id) && !lurer.has(id));
+  const regularList = [...allParticipants].filter(id => !prioritized.has(id) && !lurer.has(id));
 
   const lines = [
-    ...(prioritizedList.map(id => `🔷 <@${id}>`)),
-    ...(regularList.map(id => `・<@${id}>`))
+    ...(lurerList.map(id => `<:golden_leaf:1390654981933105203><@${id}>`)),
+    ...(prioritizedList.map(id => `<:00:1388842893782945933><@${id}>`)),
+    ...(regularList.map(id => `<:01:1388842911751471217><@${id}>`))
   ];
 
   const participantText = lines.length > 0 ? lines.join('\n') : '（なし）';
