@@ -94,45 +94,17 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply('📭 応募者がいませんでした。');
     }
 
-    const lurer = Array.isArray(event.lurer) ? event.lurer.filter(id => participants.includes(id)) : [];
-    const prioritized = Array.isArray(event.prioritized) ? event.prioritized.filter(id => participants.includes(id) && !lurer.includes(id)) : [];
-    const others = participants.filter(id => !lurer.includes(id) && !prioritized.includes(id));
-    const shuffledOthers = others.sort(() => 0.5 - Math.random());
-    const volunteer = Array.isArray(event.volunteer) ? event.volunteer.filter(id => participants.includes(id)) : [];
-    const shuffledVolunteer = volunteer.sort(() => 0.5 - Math.random())
-
-    let winners = [];
-
-    if (!winnerCount || winnerCount >= participants.length) {
-      winners = [...lurer, ...prioritized, ...shuffledOthers];
-    } else {
-      winners = [...lurer];
-      const remainingAfterSpecial = winnerCount - winners.length;
-
-      if (remainingAfterSpecial > 0) {
-        winners.push(...prioritized.slice(0, remainingAfterSpecial));
-        const remainingAfterPrioritized = winnerCount - winners.length;
-
-        if (remainingAfterPrioritized > 0) {
-          winners.push(...shuffledOthers.slice(0, remainingAfterPrioritized));
-          const remainingAfterVolunteer = winnerCount - winners.length;
-
-          if (remainingAfterVolunteer > 0) {
-            winners.push(...shuffledVolunteer.slice(0, remainingAfterVolunteer));
-          }
-        }
-      }
+    if (!event.winnerLine){
+      event.winnerLine = buildWinnerLine(event);
+      lotteryData[eventId] = event;
+      fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
     }
 
+    const winners = event.winnerLine.slice(0, winnerCount);
+    const losers = event.winnerLine.slice(winnerCount);
 
-    const losers = participants.filter(id => !winners.includes(id));
-    event.winners = winners;
-
-    lotteryData[eventId] = event;
-    fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
-    
     await interaction.reply({
-      content:`🎊 **${event.title}** の抽選結果: \n🏆 **当選者（${winners.length}名）**: \n${winners.map(id => `・<@${id}>`).join(' ')} \n😢 **落選者（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・<@${id}>`).join(' ') : '（なし）'}`,});
+      content:`🎊 **${event.title}** の抽選結果: \n🏆 **メンバー（${winners.length}名）**: \n${winners.map(id => `・<@${id}>`).join(' ')} \n😢 **補欠（${losers.length}名）**:\n${losers.length > 0 ? losers.map(id => `・<@${id}>`).join(' ') : '（なし）'}`,});
   }
   
   if (interaction.isButton() && interaction.customId.startsWith('lottery_')) {
@@ -442,11 +414,11 @@ async function updateLotteryEmbed(channel, eventId, event) {
 }
 
 function buildWinnerLine(event) {
-  const lurer = Array.isArray(event.lurer) ? event.lurer.filter(id => participants.includes(id)) : [];
-  const prioritized = Array.isArray(event.prioritized) ? event.prioritized.filter(id => participants.includes(id) && !lurer.includes(id)) : [];
-  const others = participants.filter(id => !lurer.includes(id) && !prioritized.includes(id));
+  const lurer = Array.isArray(event.lurer) ? event.lurer.filter(id => event.participants.includes(id)) : [];
+  const prioritized = Array.isArray(event.prioritized) ? event.prioritized.filter(id => event.participants.includes(id) && !event.lurer.includes(id)) : [];
+  const others = event.participants.filter(id => !lurer.includes(id) && !prioritized.includes(id) && !event.volunteer.includes(id));
   const shuffledOthers = others.sort(() => 0.5 - Math.random());
-  const volunteer = Array.isArray(event.volunteer) ? event.volunteer.filter(id => participants.includes(id)) : [];
+  const volunteer = Array.isArray(event.volunteer) ? event.volunteer.filter(id => event.participants.includes(id)) : [];
   const shuffledVolunteer = volunteer.sort(() => 0.5 - Math.random())
 
   return [...lurer, ...prioritized, ...shuffledOthers, ...shuffledVolunteer]
