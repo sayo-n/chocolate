@@ -1,9 +1,9 @@
-require('dotenv').config();
+horequire('dotenv').config();
 const fs = require('fs');
 const {DateTime} = require('luxon');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, EmbedBuilder } = require('discord.js');
 const TOKEN = process.env.TOKEN, CLIENT_ID = process.env.CLIENT_ID
-const {lurerUserIds, allowedRoleIds, usualWinners} = require('./config.json');
+const {lurerUserIds, allowedRoleIds, usualWinners, hasPincerRole, usualPincer, roles} = require('./config.json');
 
 const client = new Client({
   intents: [
@@ -45,7 +45,7 @@ client.on('interactionCreate', async interaction => {
     const channelId = interaction.channel.id;
 
     const lotteryData = fs.existsSync('lottery.json') ? JSON.parse(fs.readFileSync('lottery.json', 'utf-8')) : {};
-    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), lurer: lurerUserIds, participants: [], volunteer: [], channelId: channelId, ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
+    lotteryData[eventId] = { title, endsAt: endsAt.toISOString(), lurer: lurerUserIds, pincer: [], participants: [], volunteer: [], channelId: channelId, ...(rqBiome && { rqBiome }), ...(rqScore && { rqScore }) };
 
     const button = new ButtonBuilder()
       .setCustomId(`lottery_${eventId}`)
@@ -73,6 +73,7 @@ client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'draw-winner') {
     const eventId = interaction.options.getString('eventid');
     const winnerCount = interaction.options.getInteger('winners') ?? usualWinners;
+    const pincer = interaction.options.getInteger('pincer') ?? usualPincer;
 
     if (!fs.existsSync('lottery.json')) {
       return interaction.reply('❌ イベントデータが存在しません。');
@@ -95,7 +96,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (!event.winnerLine){
-      event.winnerLine = buildWinnerLine(event);
+      event.winnerLine = buildWinnerLine(event, pincer);
       lotteryData[eventId] = event;
       fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
     }
@@ -156,6 +157,10 @@ client.on('interactionCreate', async interaction => {
     } else {
       // 応募処理
       event.participants.push(interaction.user.id);
+      const Pincer = interaction.member.roles.cache.some(r => hasPincerRole.includes(r.id));
+      if (Pincer && !event.pincer.includes(interaction.user.id)){
+        event.pincer.push(interaction.user.id);
+      }
       // 埋め込み更新
       await updateLotteryEmbed(interaction.channel, eventId, event);
       fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
@@ -231,7 +236,7 @@ client.on('interactionCreate', async interaction => {
         response = `⚠️ <@${uid}> は **${at}** に存在しません。`;
       }
     }
-    updateLotteryEmbed(channel, eventId, event);
+    await updateLotteryEmbed(channel, eventId, event);
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
     return interaction.reply({ content: response, allowedMentions: { users: [] }, });
   } 
@@ -266,7 +271,7 @@ client.on('interactionCreate', async interaction => {
       response = `⚠️ <@${uid}> はすでに **${at}** に存在します。`;
     }
 
-    updateLotteryEmbed(channel, eventId, event);
+    await updateLotteryEmbed(channel, eventId, event);
     fs.writeFileSync('lottery.json', JSON.stringify(lotteryData, null, 2), 'utf-8');
     return interaction.reply({ content: response, allowedMentions: { users: [] }, flags: MessageFlags.Ephemeral});
   }
@@ -300,7 +305,9 @@ async function registerGlobalCommands() {
       .addStringOption(opt =>
         opt.setName('eventid').setDescription('イベントID').setRequired(true))
       .addIntegerOption(opt =>
-        opt.setName('winners').setDescription('当選者数').setRequired(false)),
+        opt.setName('winners').setDescription('当選者数').setRequired(false))
+      .addIntegerOption(opt =>
+        opt.setName('pincer').setDescription('Pincer所持者を人数分確定させる').setRequired(false)),
       
     new SlashCommandBuilder()
       .setName('lottery')
@@ -311,7 +318,6 @@ async function registerGlobalCommands() {
         opt.setName('at').setDescription('対象フィールド').setRequired(true)
         .addChoices(
           { name: 'participants', value: 'participants' },
-          { name: 'winners', value: 'winners' },
           { name: 'x3', value: 'prioritized' },
           { name: 'lurer', value : 'lurer'},
           { name: 'volunteer', value: 'volunteer'}
@@ -361,6 +367,9 @@ function parseJSTDate(inputStr) {
   // パターン3: HH:mm（年月日は現在の日付）
   else if (/^\d{1,2}:\d{1,2}$/.test(inputStr)) {
     dt = DateTime.fromFormat(`${now.toFormat('yyyy-MM-dd')} ${inputStr}`, 'yyyy-MM-dd H:m', { zone: 'Asia/Tokyo' });
+    if (dt < now) {
+      dt = dt.plus({ days: 1 });
+    }
   }
   else {
     throw new Error(`不正な日付形式です: ${inputStr}`);
@@ -381,15 +390,18 @@ async function updateLotteryEmbed(channel, eventId, event) {
   const prioritized = new Set(event.prioritized ?? []);
   const lurer = new Set(event.lurer ?? []);
   const volunteer = new Set(event.volunteer ?? []);
+  const pincer = new Set(event.pincer ?? []);
 
   const lurerList = [...allParticipants].filter(id => lurer.has(id));
   const prioritizedList = [...allParticipants].filter(id => prioritized.has(id) && !lurer.has(id));
-  const regularList = [...allParticipants].filter(id => !prioritized.has(id) && !lurer.has(id) && !volunteer.has(id));
+  const pincerList = [...allParticipants].filter(id => !prioritized.has(id) && !lurer.has(id) && !volunteer.has(id) && pincer.has(id));
+  const regularList = [...allParticipants].filter(id => !prioritized.has(id) && !lurer.has(id) && !volunteer.has(id) && !pincer.has(id));
   const volunteerList = [...allParticipants].filter(id => volunteer.has(id) && !lurer.has(id) && !prioritized.has(id));
 
   const lines = [
     ...(lurerList.map(id => `<:golden_leaf:1446514092142624828><@${id}>`)),
     ...(prioritizedList.map(id =>`<:uniquechip:1446482108280340551><@${id}>`)),
+    ...(pincerList.map(id => `<:pincer:1453218667478257897><@${id}>`)),
     ...(regularList.map(id => ` <:superchip:1446482135287599207><@${id}>`)),
     ...(volunteerList.map(id => `ボ<@${id}>`))
   ];
@@ -413,16 +425,63 @@ async function updateLotteryEmbed(channel, eventId, event) {
   await message.edit({ embeds: [embed], fetchReply: true });
 }
 
-function buildWinnerLine(event) {
-  const lurer = Array.isArray(event.lurer) ? event.lurer.filter(id => event.participants.includes(id)) : [];
-  const prioritized = Array.isArray(event.prioritized) ? event.prioritized.filter(id => event.participants.includes(id) && !event.lurer.includes(id)) : [];
-  const others = event.participants.filter(id => !lurer.includes(id) && !prioritized.includes(id) && !event.volunteer.includes(id));
-  const shuffledOthers = others.sort(() => 0.5 - Math.random());
-  const volunteer = Array.isArray(event.volunteer) ? event.volunteer.filter(id => event.participants.includes(id)) : [];
-  const shuffledVolunteer = volunteer.sort(() => 0.5 - Math.random())
+function buildWinnerLine(event, roleCount) {
+  const participants = [...event.participants];
 
-  return [...lurer, ...prioritized, ...shuffledOthers, ...shuffledVolunteer]
+  const isRoleHolder = id => event.pincer?.includes(id);
+  const isVolunteer  = id => event.volunteer?.includes(id);
 
+  let roleRemain = roleCount;
+  const used = new Set();
+  const line = [];
+
+  const push = (id) => {
+    if (used.has(id)) return;
+    used.add(id);
+    line.push(id);
+    if (roleRemain > 0 && isRoleHolder(id)) {
+      roleRemain--;
+    }
+  };
+
+  // 1. lurer
+  for (const id of event.lurer ?? []) {
+    if (participants.includes(id)) push(id);
+  }
+
+  // 2. prioritized
+  for (const id of event.prioritized ?? []) {
+    if (participants.includes(id)) push(id);
+  }
+
+  // 通常参加者（volunteer除外）
+  const normalRest = participants
+    .filter(id => !used.has(id) && !isVolunteer(id))
+    .sort(() => 0.5 - Math.random());
+
+  // 3. role枠を満たす（lurer/prioritized で足りていなければ）
+  for (const id of normalRest) {
+    if (roleRemain <= 0) break;
+    if (isRoleHolder(id)) {
+      push(id);
+    }
+  }
+
+  // 4. 通常参加者をすべて追加
+  for (const id of normalRest) {
+    push(id);
+  }
+
+  // 5. volunteer は必ず最後
+  const volunteer = (event.volunteer ?? [])
+    .filter(id => participants.includes(id))
+    .sort(() => 0.5 - Math.random());
+
+  for (const id of volunteer) {
+    push(id);
+  }
+
+  return line;
 }
 
 client.login(TOKEN);
