@@ -1,4 +1,4 @@
-horequire('dotenv').config();
+require('dotenv').config();
 const fs = require('fs');
 const {DateTime} = require('luxon');
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags, EmbedBuilder } = require('discord.js');
@@ -485,3 +485,4 @@ function buildWinnerLine(event, roleCount) {
 }
 
 client.login(TOKEN);
+
